@@ -1,0 +1,60 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: files-api
+  name: files-api
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: files-api
+    spec:
+      containers:
+      - args:
+        - --spring.profiles.active=prod
+        - --prod.database.url=jdbc:postgresql://egar.chmjeqipapmr.eu-west-2.rds.amazonaws.com/egardb
+        - --prod.database.username=$(DB_USER)
+        - --prod.database.password=$(DB_PASS)
+        - --aws.s3.region=eu-west-2
+        - --aws.s3.bucket=egar-file-clean
+        - --aws.s3.access.key=$(AWS_S3_KEY)
+        - --aws.s3.secret.key=$(AWS_S3_SECRET)
+        - --aws.s3.scanbucket=egar-file-awaiting-scan
+        - --aws.s3.cleanbucket=egar-file-clean
+        - --aws.s3.quarantinebucket=egar-file-quarantine
+        env:
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: egar-secret
+                key: dbuser
+          - name: DB_PASS
+            valueFrom:
+              secretKeyRef:
+                name: egar-secret
+                key: dbpass
+          - name: AWS_S3_KEY
+            valueFrom:
+              secretKeyRef:
+                name: egar-secret
+                key: awss3ackey
+          - name: AWS_S3_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: egar-secret
+                key: awss3seckey
+        image: pipe.egarteam.co.uk/egar-files-api:$FILES_API_VER
+        name: files-api
+        livenessProbe:
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          httpGet:
+            path: /health
+            port: 8086
+        resources: {}
+      restartPolicy: Always
+status: {}
