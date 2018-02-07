@@ -16,9 +16,12 @@ spec:
       containers:
       - args:
         - --spring.profiles.active=prod
-        - --prod.database.url=jdbc:postgresql://egar.chmjeqipapmr.eu-west-2.rds.amazonaws.com/egardb
+        - --prod.database.url=jdbc:postgresql://$(DB_URL)
         - --prod.database.username=$(DB_USER)
         - --prod.database.password=$(DB_PASS)
+        - --aws.sqs.region=eu-west-2
+        - --aws.sqs.access.key=$(AWS_SQS_KEY)
+        - --aws.sqs.secret.key=$(AWS_SQS_SECRET)
         - --aws.s3.region=eu-west-2
         - --aws.s3.bucket=egar-file-clean
         - --aws.s3.access.key=$(AWS_S3_KEY)
@@ -27,6 +30,11 @@ spec:
         - --aws.s3.cleanbucket=egar-file-clean
         - --aws.s3.quarantinebucket=egar-file-quarantine
         env:
+          - name: DB_URL
+            valueFrom:
+              secretKeyRef:
+                name: egar-secret
+                key: dburl
           - name: DB_USER
             valueFrom:
               secretKeyRef:
@@ -47,14 +55,24 @@ spec:
               secretKeyRef:
                 name: egar-secret
                 key: awss3seckey
+          - name: AWS_SQS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: egar-secret
+                key: awssqsackey
+          - name: AWS_SQS_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: egar-secret
+                key: awssqsseckey
         image: pipe.egarteam.co.uk/egar-files-api:$FILES_API_VER
         name: files-api
         livenessProbe:
-          initialDelaySeconds: 15
+          initialDelaySeconds: 120
           periodSeconds: 20
           httpGet:
             path: /health
-            port: 8086
+            port: 8080
         resources: {}
       restartPolicy: Always
 status: {}
