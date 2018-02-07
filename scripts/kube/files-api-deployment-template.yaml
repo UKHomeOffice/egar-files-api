@@ -29,6 +29,8 @@ spec:
         - --aws.s3.scanbucket=egar-file-awaiting-scan
         - --aws.s3.cleanbucket=egar-file-clean
         - --aws.s3.quarantinebucket=egar-file-quarantine
+        - --egar.vscan.req.queue=develop_vscan_request
+        - --egar.vscan.res.queue=develop_vscan_response
         env:
           - name: DB_URL
             valueFrom:
