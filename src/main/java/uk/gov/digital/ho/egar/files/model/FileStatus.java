@@ -9,8 +9,5 @@ public enum FileStatus {
     UPLOAD_FAILED,
     AWAITING_VIRUS_SCAN,
     VIRUS_SCANNED,
-    QUARANTINED,
-    DOWNLOADED,
-    CLEAN,
-    INFECTED
+    QUARANTINED
 }

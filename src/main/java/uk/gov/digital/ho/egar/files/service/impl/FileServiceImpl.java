@@ -17,6 +17,7 @@ import uk.gov.digital.ho.egar.files.model.*;
 import uk.gov.digital.ho.egar.files.service.FileService;
 import uk.gov.digital.ho.egar.files.service.repository.FilePersistedRecordRepository;
 import uk.gov.digital.ho.egar.files.service.repository.model.FilePersistedRecord;
+import uk.gov.digital.ho.egar.files.utils.UrlUtilities;
 
 @Service
 public class FileServiceImpl implements FileService {
@@ -38,11 +39,16 @@ public class FileServiceImpl implements FileService {
 	 */
 	private NotificationService notifyService;
 
+	private final UrlUtilities urlUtilities;
+
 	public FileServiceImpl(@Autowired final FileStorageClient fileStorageClient,
-			@Autowired final FilePersistedRecordRepository repo, @Autowired NotificationService notifyService) {
+						   @Autowired final FilePersistedRecordRepository repo,
+						   @Autowired NotificationService notifyService,
+						   @Autowired UrlUtilities urlUtilities) {
 		this.fileStorageClient = fileStorageClient;
 		this.repo = repo;
 		this.notifyService = notifyService;
+		this.urlUtilities = urlUtilities;
 	}
 
 	@Override
@@ -98,7 +104,7 @@ public class FileServiceImpl implements FileService {
 
 		// update DB with File Link
 		fileDetails.setFileLink(url.toString());
-		fileDetails.setStatus(scanResults.getFileStatus()==ScannedFileStatus.CLEAN?FileStatus.CLEAN:FileStatus.INFECTED);
+		fileDetails.setStatus(scanResults.getFileStatus()==ScannedFileStatus.CLEAN?FileStatus.VIRUS_SCANNED:FileStatus.QUARANTINED);
 		return repo.save(fileDetails);
 	}
 
@@ -175,7 +181,8 @@ public class FileServiceImpl implements FileService {
 	 * @return The new fileName.
 	 */
 	private String constructFilename(FileDetails details) {
-		return details.getFileUuid().toString() + "/" + details.getFileName();
+		String filename =  details.getFileUuid().toString() + "/" + details.getFileName();
+		return urlUtilities.urlDecodeValue(filename);
 	}
 
 	/**

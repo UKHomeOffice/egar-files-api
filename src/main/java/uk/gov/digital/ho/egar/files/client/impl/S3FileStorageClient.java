@@ -18,11 +18,10 @@ import org.springframework.stereotype.Component;
 import uk.gov.digital.ho.egar.files.api.exceptions.FileClientException;
 import uk.gov.digital.ho.egar.files.client.FileStorageClient;
 import uk.gov.digital.ho.egar.files.config.S3Config;
-import uk.gov.digital.ho.egar.files.model.FileStatus;
 import uk.gov.digital.ho.egar.files.model.ScannedFileStatus;
 import uk.gov.digital.ho.egar.files.model.pojo.FileInfoPojo;
+import uk.gov.digital.ho.egar.files.utils.UrlUtilities;
 
-import java.net.URL;
 import java.util.Objects;
 
 import javax.validation.Valid;
@@ -34,7 +33,6 @@ import javax.validation.Valid;
 @Profile("!s3-mocks")
 public class S3FileStorageClient implements FileStorageClient {
 
-	public static final String UTF_8 = "UTF-8";
 	private final Log logger = LogFactory.getLog(S3FileStorageClient.class);
 
 	@Autowired
@@ -43,16 +41,21 @@ public class S3FileStorageClient implements FileStorageClient {
 	@Autowired
 	private S3Config s3Config;
 
+	@Autowired
+	private UrlUtilities urlUtilities;
+
 	@Override
 	public void delete(final String fileLink) throws FileClientException {
 
 		AmazonS3URI uri = new AmazonS3URI(fileLink);
 
+		String key = urlUtilities.urlDecodeKey(uri);
+
 		try {
-			logger.info("Attempting to delete file " + uri.getKey() + " from  bucket " + uri.getBucket() + " on s3");
-			s3Client.deleteObject(uri.getBucket(), uri.getKey());
+			logger.info("Attempting to delete file " + key + " from  bucket " + uri.getBucket() + " on s3");
+			s3Client.deleteObject(uri.getBucket(), key);
 		} catch (AmazonServiceException ase) {
-			logger.error(String.format("AmazonServiceException when deleting file '%s' in bucket '%s'", uri.getKey(),
+			logger.error(String.format("AmazonServiceException when deleting file '%s' in bucket '%s'", key,
 					uri.getBucket()), ase);
 			throw new FileClientException(ase.getMessage());
 		} catch (AmazonClientException ace) {
@@ -70,12 +73,7 @@ public class S3FileStorageClient implements FileStorageClient {
 		try {
 			AmazonS3URI uri = new AmazonS3URI(link);
 
-			urlDecodedKey = uri.getKey();
-			try {
-				urlDecodedKey = URLDecoder.decode(urlDecodedKey, UTF_8);
-			} catch (UnsupportedEncodingException e) {
-				logger.error(String.format("Unable to decode '%s' with format '%s'", urlDecodedKey, UTF_8), e);
-			}
+			urlDecodedKey = urlUtilities.urlDecodeKey(uri);
 
 			metadata = s3Client.getObject(uri.getBucket(), urlDecodedKey).getObjectMetadata();
 		}
@@ -98,15 +96,18 @@ public class S3FileStorageClient implements FileStorageClient {
 		AmazonS3URI uri = new AmazonS3URI(fileLink);
 		logger.info("Copying Object -> " + "Bucket Name " + uri.getBucket() + "File Name: " + uri.getKey()
 				+ "Destination bucket: " + s3Config.getScanbucket() + "File Name again: " + newFilename);
+
+		String key = urlUtilities.urlDecodeKey(uri);
+		String newKey = urlUtilities.urlDecodeKey(uri);
 		try {
 			// copy object
-			CopyObjectRequest copyObject = new CopyObjectRequest(uri.getBucket(), uri.getKey(),
-					s3Config.getScanbucket(), newFilename);
+			CopyObjectRequest copyObject = new CopyObjectRequest(uri.getBucket(), key,
+					s3Config.getScanbucket(), newKey);
 			s3Client.copyObject(copyObject);
 			// delete object
-			s3Client.deleteObject(uri.getBucket(), uri.getKey());
+			s3Client.deleteObject(uri.getBucket(), key);
 
-			return s3Client.getUrl(s3Config.getScanbucket(), newFilename);
+			return s3Client.getUrl(s3Config.getScanbucket(), newKey);
 		} catch (AmazonClientException e) {
 			logger.info("Error Message: " + e.getMessage());
 			throw new FileClientException(String.format("Unable to move file '%s' to scan folder", fileLink));
@@ -124,17 +125,20 @@ public class S3FileStorageClient implements FileStorageClient {
 			destinationBucket = s3Config.getCleanbucket();
 
 		AmazonS3URI uri = new AmazonS3URI(fileLink);
+		String key = urlUtilities.urlDecodeKey(uri);
 		try {
-			CopyObjectRequest copyObject = new CopyObjectRequest(uri.getBucket(), uri.getKey(), destinationBucket,
-					uri.getKey());
+			CopyObjectRequest copyObject = new CopyObjectRequest(uri.getBucket(), key, destinationBucket,
+					key);
 			s3Client.copyObject(copyObject);
-			s3Client.deleteObject(uri.getBucket(), uri.getKey());
+			s3Client.deleteObject(uri.getBucket(), key);
 
 		} catch (AmazonClientException e) {
 			logger.info("Error Message: " + e.getMessage());
 
 		}
-		return s3Client.getUrl(destinationBucket, uri.getKey());
+		return s3Client.getUrl(destinationBucket, key);
 	}
+
+
 
 }
