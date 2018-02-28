@@ -48,7 +48,8 @@ public class FileScanServiceImpl implements FileScanService {
 			String errMsg = "Error encountered while attempting to move processed file to the correct folder";
 			Objects.requireNonNull(scanResults, errMsg);
 			logger.error(errMsg, e);
-			throw new JMSException(errMsg);
+			logger.error(e.getMessage());
+//			throw new JMSException(errMsg);
 		}
 
 	}

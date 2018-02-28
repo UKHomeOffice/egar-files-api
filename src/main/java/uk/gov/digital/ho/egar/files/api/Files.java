@@ -1,5 +1,6 @@
 package uk.gov.digital.ho.egar.files.api;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -39,6 +40,14 @@ public interface Files {
 	 * @throws FilesApiException
 	 */
 	ResponseEntity<Void> delete(UUID fileUuid, UUID uuidOfUser) throws FilesApiException;
+
+	/**
+	 * Retrieve a list of file details
+	 * @param uuidOfUser
+	 * @param fileUuids
+	 * @return list of file details
+	 */
+	FileDetails[] bulkRetrieveFiles(final UUID uuidOfUser, final List<UUID> fileUuids);
 
 	
 

@@ -21,4 +21,5 @@ public interface RestConstants {
 	String DETAILS_ROOT_PATH = ServicePathConstants.ROOT_PATH_SEPERATOR + ServicePathConstants.ROOT_SERVICE_API
 			+ ServicePathConstants.ROOT_PATH_SEPERATOR + ServicePathConstants.SERVICE_VERSION_ONE
 			+ ServicePathConstants.ROOT_PATH_SEPERATOR + FILE_DETAILS_SERVICE_NAME;
+	String PATH_BULK = "/Summaries";
 }

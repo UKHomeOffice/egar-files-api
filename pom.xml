@@ -267,7 +267,7 @@
 		</pluginRepository>
 	</pluginRepositories>
 
-	<version>4.0.7</version>
+	<version>5.0.1</version>
 	<name>Files API application</name>
 	<description>An example files API application</description>
 </project>

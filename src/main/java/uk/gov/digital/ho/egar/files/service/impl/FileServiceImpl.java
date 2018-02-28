@@ -2,6 +2,7 @@ package uk.gov.digital.ho.egar.files.service.impl;
 
 import java.net.URL;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.logging.Log;
@@ -118,7 +119,7 @@ public class FileServiceImpl implements FileService {
 	 * @return file details.
 	 */
 	public FileDetails retrieveFileDetails(UUID fileUuid, UUID userUuid) throws FileNotFoundFilesApiException {
-		FileDetails fileDetails = repo.findOneByFileUuidAndUserUuidAndDeletedIsFalse(fileUuid, userUuid);
+		FilePersistedRecord fileDetails = repo.findOneByFileUuidAndUserUuidAndDeletedIsFalse(fileUuid, userUuid);
 
 		if (fileDetails == null) {
 			throw new FileNotFoundFilesApiException(fileUuid, userUuid);
@@ -172,6 +173,14 @@ public class FileServiceImpl implements FileService {
 		return fileStorageClient.getFileLinkDetails(fileLink.getFileLink());
 	}
 	
+	@Override
+	public FileDetails[] getBulkfiles(UUID uuidOfUser, List<UUID> fileUuids) {
+		List<FilePersistedRecord> fileList = repo.findAllByUserUuidAndFileUuidIn(uuidOfUser,fileUuids);
+		FileDetails[] filesArray = new FileDetails[fileList.size()];
+		filesArray = fileList.toArray(filesArray);
+		return filesArray;
+	}
+
 
 	/**
 	 * Constructs the fileName by combining the uuid and original fileName

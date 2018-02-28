@@ -9,6 +9,7 @@ import uk.gov.digital.ho.egar.files.model.FileEntry;
 import uk.gov.digital.ho.egar.files.model.FileInfoDetails;
 import uk.gov.digital.ho.egar.files.model.ScanResults;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -65,6 +66,14 @@ public interface FileService {
 	 */
 
 	FileInfoDetails getFileLinkDetails(FileInfoDetails fileLink) throws FileNotFoundFilesApiException, FileClientException;
+
+	/**
+	 * Retrieve a list of file details
+	 * @param uuidOfUser
+	 * @param fileUuids
+	 * @return list of file details
+	 */
+	FileDetails[] getBulkfiles(final UUID uuidOfUser, final List<UUID> fileUuids);
 
 
 }

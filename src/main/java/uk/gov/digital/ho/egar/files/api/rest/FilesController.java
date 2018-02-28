@@ -39,6 +39,7 @@ import uk.gov.digital.ho.egar.files.model.FileDetails;
 import uk.gov.digital.ho.egar.files.model.FileEntry;
 import uk.gov.digital.ho.egar.files.service.FileService;
 import uk.gov.digital.ho.egar.files.utils.UriLocationUtilities;
+import uk.gov.digital.ho.egar.shared.auth.api.token.AuthValues;
 import uk.gov.digital.ho.egar.shared.auth.api.token.UserValues;
 
 @RestController
@@ -126,6 +127,33 @@ public class FilesController implements Files {
 
 		return new ApiErrors().addFieldErrors(fieldErrors) ;
 	}
+	//---------------------------------------------------------------------------------------------------------
+    
+    /**
+     * A get endpoint that bulk retrieves a list of file details
+     */
+    
+    
+    @Override
+    @ApiOperation(value = "Bulk retrieve a list of file details",
+            notes = "Retrieve a list of file details for a user")
+    @ApiResponses(value = {
+    		@ApiResponse(
+                    code = 200,
+                    message = "Succesful retrieval",
+                    response = FileDetails[].class),
+            @ApiResponse(
+                    code = 401,
+                    message = "Unauthorised")})
+    @ResponseStatus(HttpStatus.OK)
+    @PostMapping(path = RestConstants.PATH_BULK,
+    			consumes = MediaType.APPLICATION_JSON_VALUE,
+           		produces = MediaType.APPLICATION_JSON_VALUE)
+    public FileDetails[] bulkRetrieveFiles(@RequestHeader(AuthValues.USERID_HEADER) UUID uuidOfUser, 
+    									   @RequestBody List<UUID> fileUuids) {
+    	
+    	return fileService.getBulkfiles(uuidOfUser,fileUuids);
+    }
 	
 
 }

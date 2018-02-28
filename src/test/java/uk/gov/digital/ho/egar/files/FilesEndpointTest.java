@@ -15,6 +15,9 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import uk.gov.digital.ho.egar.constants.ServicePathConstants;
 import uk.gov.digital.ho.egar.files.api.RestConstants;
 import uk.gov.digital.ho.egar.files.client.FileStorageClient;
@@ -24,6 +27,7 @@ import uk.gov.digital.ho.egar.files.service.repository.FilePersistedRecordReposi
 import uk.gov.digital.ho.egar.files.service.repository.model.FilePersistedRecord;
 import uk.gov.digital.ho.egar.files.tests.utils.FileReaderUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,8 +43,10 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON_UTF8_VALUE;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.hasSize;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(properties = { "eureka.client.enabled=false", "spring.cloud.config.discovery.enabled=false",
@@ -54,13 +60,18 @@ public class FilesEndpointTest {
 	private static final String AUTH = "values";
 	private static final String requestURL = "/api/v1/Files/";
 	private static final String detailsURL = "api/v1/FileDetails/";
-
+	
 	private static final String bucket = "egar-file-upload";
 	private static final String OBJECT_KEY = "object_key";
+
+	private static final String PATH_BULK = "/api/v1/Files/Summaries";
 
 	@Autowired
 	private MockMvc mockMvc;
 
+	@Autowired
+	private ObjectMapper mapper;
+	
 	@Autowired
 	private FilePersistedRecordRepository repo;
 
@@ -305,4 +316,127 @@ public class FilesEndpointTest {
 		return UUID.fromString(parts[parts.length - 1]);
 	}
 
+	//--------------------------------------------------------------------------------------------------------------
+	@Test
+	public void shouldOnlyBulkfetchPeopleInListAndForThisUser() throws Exception{
+		// WITH
+		repo.deleteAll();
+		UUID userUuid = UUID.randomUUID();
+
+		List<UUID> fileUuids = new ArrayList<>();
+
+		// add three people for the current user and save ids to list
+		for (int i=0; i<3 ; i++) {
+			UUID fileUuid = UUID.randomUUID();
+			
+		FilePersistedRecord file = FilePersistedRecord.builder()
+        		.fileUuid(fileUuid)
+        		.userUuid(userUuid)
+        		.fileName("abcd.txt")
+        		.fileSize(1000L)
+				.deleted(false)
+        		.fileLink("/url/abc/abcd.txt")
+        		.build();
+        repo.saveAndFlush(file);
+			fileUuids.add(fileUuid);
+		}
+		// add a file for user but dont add to list
+		UUID fileUuid = UUID.randomUUID();
+			FilePersistedRecord file = FilePersistedRecord.builder()
+        		.fileUuid(fileUuid)
+        		.userUuid(userUuid)
+        		.fileName("abcd.txt")
+        		.fileSize(1000L)
+				.deleted(false)
+        		.fileLink("/url/abc/abcd.txt")
+        		.build();
+        repo.saveAndFlush(file);
+		// add a file for different user
+		UUID fileUuidOther = UUID.randomUUID();
+		UUID UuidDiffUser = UUID.randomUUID();
+		FilePersistedRecord otherFile = FilePersistedRecord.builder()
+        		.fileUuid(fileUuidOther)
+        		.userUuid(UuidDiffUser)
+        		.fileName("abcd.txt")
+        		.fileSize(1000L)
+				.deleted(false)
+        		.fileLink("/url/abc/abcd.txt")
+        		.build();
+        repo.saveAndFlush(otherFile);
+		fileUuids.add(fileUuidOther);
+		// WHEN
+		MvcResult result =
+				this.mockMvc
+				.perform(post(PATH_BULK)
+						.header(USERID_HEADER, userUuid)
+						.contentType(MediaType.APPLICATION_JSON_UTF8_VALUE)
+						.content(mapper.writeValueAsString(fileUuids)))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+				//THEN
+				.andExpect(jsonPath("$").exists())
+				.andExpect(jsonPath("$").isArray())
+				.andExpect(jsonPath("$", hasSize(3)))
+				.andExpect(jsonPath("$[*].file_uuid", hasItems(fileUuids.get(0).toString(),fileUuids.get(1).toString(),fileUuids.get(2).toString()))).andReturn();
+		//Check it doesn't contain other files
+		String response = result.getResponse().getContentAsString();
+		assertFalse(response.contains(fileUuid.toString()));
+		assertFalse(response.contains(fileUuids.get(3).toString()));
+
+	}
+
+	@Test
+	public void bulkFetchShouldReturnEmptyArrayIfNoMatch() throws Exception{
+		// WITH
+		repo.deleteAll();
+		UUID userUuid       = UUID.randomUUID();
+		List<UUID> fileUuids = new ArrayList<>();
+		for (int i=0; i<3 ; i++) {
+			fileUuids.add(UUID.randomUUID());
+		}
+		// WHEN
+		this.mockMvc
+		.perform(post(PATH_BULK)
+				.header(USERID_HEADER, userUuid)
+				.contentType(MediaType.APPLICATION_JSON_UTF8_VALUE)
+				.content(mapper.writeValueAsString(fileUuids)))
+		// THEN
+		.andExpect(status().isOk())
+		.andExpect(jsonPath("$").exists())
+		.andExpect(jsonPath("$").isArray())
+		.andExpect(jsonPath("$", hasSize(0)));
+	}
+	
+	@Test
+	public void bulkFetchShouldNotContainDuplicateData() throws Exception{
+		// WITH
+		repo.deleteAll();
+		UUID userUuid = UUID.randomUUID();
+		UUID fileUuid  = UUID.randomUUID();
+		
+		// add gar for user
+		FilePersistedRecord file = FilePersistedRecord.builder()
+        		.fileUuid(fileUuid)
+        		.userUuid(userUuid)
+        		.fileName("abcd.txt")
+        		.fileSize(1000L)
+				.deleted(false)
+        		.fileLink("/url/abc/abcd.txt")
+        		.build();
+        repo.saveAndFlush(file);
+		
+		List<UUID> fileUuids = new ArrayList<>();
+		// add same file uuid to request list
+		fileUuids.add(fileUuid);
+		fileUuids.add(fileUuid);
+		// WHEN
+		this.mockMvc
+		.perform(post(PATH_BULK).header(USERID_HEADER, userUuid)
+				.contentType(MediaType.APPLICATION_JSON_UTF8_VALUE)
+				.content(mapper.writeValueAsString(fileUuids)))
+		.andExpect(status().isOk())
+		.andExpect(jsonPath("$").exists())
+		.andExpect(jsonPath("$").isArray())
+		.andExpect(jsonPath("$", hasSize(1)));
+	}
 }
